@@ -1,0 +1,28 @@
+{
+  "name": "chinook-graphql",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "NODE_ENV=development wrangler dev",
+    "start": "wrangler dev",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.19",
+    "@cloudflare/workers-types": "^4.20241011.0",
+    "drizzle-kit": "^0.25.0",
+    "typescript": "^5.6.3",
+    "vitest": "2.0.5",
+    "wrangler": "^3.80.5"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "dataloader": "^2.2.2",
+    "drizzle-graphql": "^0.8.5",
+    "drizzle-orm": "^0.34.1",
+    "graphql": "^16.9.0",
+    "graphql-yoga": "^5.7.0"
+  }
+}

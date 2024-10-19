@@ -1,0 +1,14 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "chinook-graphql"
+main = "src/server.ts"
+compatibility_date = "2024-10-11"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chinook"
+database_id = "9435f9f4-1f91-43b2-bdb5-22e788a85c58"
+migrations_dir = "drizzle/migrations"
