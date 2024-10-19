@@ -1,4 +1,4 @@
-import { createSchema } from 'graphql-yoga';
+import { createSchema, YogaInitialContext } from 'graphql-yoga';
 import { eq } from 'drizzle-orm';
 import { album, artist } from './db/schema';
 import { ContextEnv } from './env';
@@ -70,10 +70,15 @@ export const schema = createSchema<ContextEnv>({
 			},
 		},
 		Album: {
-			artist: (parent, _args, ctx) => {
-				try {
+			artist: (parent, _args, ctx, info) => {
+				const albumSelection = getFieldInfo(info, 'albums');
+				if (albumSelection) {
+					const first = Number(albumSelection.args.first) ?? 20;
+					const dataloader = getArtistsWithAlbumsBatchDataloader(ctx, first);
+					return dataloader.load(parent.artistId);
+				} else {
 					return ctx.dataloaders.getArtistsBatch.load(parent.artistId);
-				} catch (err) {}
+				}
 			},
 		},
 		Artist: {
@@ -88,3 +93,11 @@ export const schema = createSchema<ContextEnv>({
 		},
 	},
 });
+
+function getArtistsWithAlbumsBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	if (!ctx.dataloaders.getArtistsWithAlbumsBatch.first[first]) {
+		ctx.dataloaders.getArtistsWithAlbumsBatch.first[first] =
+			ctx.dataloaders.getArtistsWithAlbumsBatchDataloader(first);
+	}
+	return ctx.dataloaders.getArtistsWithAlbumsBatch.first[first];
+}
