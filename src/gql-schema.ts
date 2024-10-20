@@ -19,61 +19,80 @@ export const schema = createSchema<ContextEnv>({
 			title: String
 			artistId: Int
 			artist: Artist
+			tracks(first: Int): [Track!]!
 		}
 		type Artist {
 			artistId: ID
 			name: String
 			albums(first: Int): [Album!]!
 		}
+		type Track {
+			trackId: ID
+			name: String
+			composer: String
+			milliseconds: Int
+			bytes: Int
+			unitPrice: String
+			albumId: Int
+			album: Album
+			mediaTypeId: Int
+			genreId: Int
+		}
 	`,
 	resolvers: {
 		Query: {
 			hello: () => 'world',
-			album: (_, args, ctx) => ctx.db.query.album.findFirst({ where: eq(album.albumId, args.id) }),
-			albums: (_, args, ctx) =>
-				ctx.db.query.album.findMany({
-					// max 100 because cloudflare d1 has "Maximum bound parameters per query" = 100
-					// you can hit this limit when you get albums with artist, if unique artist ids is more than 100
-					// artist dataloader will error
-					limit: Math.min(args.limit ?? 20, 100),
+			album: (_, args, ctx, info) => {
+				const tracksSelection = getFieldInfo(info, 'tracks');
+				return ctx.db.query.album.findFirst({
+					where: eq(album.albumId, args.id),
+					with: {
+						tracks: tracksSelection
+							? { limit: Number(tracksSelection.args.first) || 20 }
+							: undefined,
+					},
+				});
+			},
+			albums: (_, args, ctx, info) => {
+				const tracksSelection = getFieldInfo(info, 'tracks');
+				return ctx.db.query.album.findMany({
+					limit: args.limit || 20,
 					offset: args.offset ?? 0,
-				}),
+					with: {
+						tracks: tracksSelection
+							? { limit: Number(tracksSelection.args.first) || 20 }
+							: undefined,
+					},
+				});
+			},
 			artist: (_, args, ctx, info) => {
-				// todo finish later, join conditionally
 				const albumSelection = getFieldInfo(info, 'albums');
-				if (albumSelection) {
-					return ctx.db.query.artist.findFirst({
-						where: eq(artist.artistId, args.id),
-						with: { albums: { limit: Number(albumSelection.args.first) ?? 20 } },
-					});
-				} else {
-					return ctx.db.query.artist.findFirst({ where: eq(artist.artistId, args.id) });
-				}
+				return ctx.db.query.artist.findFirst({
+					where: eq(artist.artistId, args.id),
+					with: {
+						albums: albumSelection ? { limit: Number(albumSelection.args.first) || 20 } : undefined,
+					},
+				});
 			},
 			artists: (_, args, ctx, info) => {
 				const albumSelection = getFieldInfo(info, 'albums');
-				if (albumSelection) {
-					return ctx.db.query.artist.findMany({
-						limit: Math.min(args.limit ?? 20, 100),
-						offset: args.offset ?? 0,
-						with: { albums: { limit: Number(albumSelection.args.first) ?? 20 } },
-					});
-				} else {
-					return ctx.db.query.artist.findMany({
-						// max 100 because cloudflare d1 has "Maximum bound parameters per query" = 100
-						// you can hit this limit when you get albums with artist, if unique artist ids is more than 100
-						// artist dataloader will error
-						limit: Math.min(args.limit ?? 20, 100),
-						offset: args.offset ?? 0,
-					});
-				}
+				// max 100 because cloudflare d1 has "Maximum bound parameters per query" = 100
+				// you can hit this limit when you get albums with artist, if unique artist ids is more than 100
+				// artist dataloader will error
+				return ctx.db.query.artist.findMany({
+					limit: Math.min(args.limit || 20, 100),
+					offset: args.offset ?? 0,
+					with: {
+						albums: albumSelection ? { limit: Number(albumSelection.args.first) || 20 } : undefined,
+					},
+				});
 			},
 		},
 		Album: {
 			artist: (parent, _args, ctx, info) => {
 				const albumSelection = getFieldInfo(info, 'albums');
 				if (albumSelection) {
-					const first = Number(albumSelection.args.first) ?? 20;
+					const first = Number(albumSelection.args.first) || 20;
 					const dataloader = getArtistsWithAlbumsBatchDataloader(ctx, first);
 					return dataloader.load(parent.artistId);
 				} else {
@@ -87,7 +106,7 @@ export const schema = createSchema<ContextEnv>({
 					? parent.albums
 					: ctx.db.query.album.findMany({
 							where: eq(album.artistId, parent.artistId),
-							limit: args.first ?? 20,
+							limit: args.first || 20,
 					  });
 			},
 		},
