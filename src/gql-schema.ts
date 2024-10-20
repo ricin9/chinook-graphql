@@ -20,19 +20,19 @@ export const schema = createSchema<ContextEnv>({
 		}
 
 		type Album {
-			albumId: ID
+			albumId: ID!
 			title: String
 			artistId: Int
 			artist: Artist!
 			tracks(first: Int): [Track!]!
 		}
 		type Artist {
-			artistId: ID
+			artistId: ID!
 			name: String
 			albums(first: Int): [Album!]!
 		}
 		type Track {
-			trackId: ID
+			trackId: ID!
 			name: String
 			composer: String
 			milliseconds: Int
@@ -48,19 +48,19 @@ export const schema = createSchema<ContextEnv>({
 			playlists(first: Int): [Playlist!]!
 		}
 		type MediaType {
-			mediaTypeId: ID
+			mediaTypeId: ID!
 			name: String
-			tracks: [Track!]!
+			tracks(first: Int): [Track!]!
 		}
 		type Genre {
-			genreId: ID
+			genreId: ID!
 			name: String
-			tracks: [Track!]!
+			tracks(first: Int): [Track!]!
 		}
 		type Playlist {
-			playlistId: ID
+			playlistId: ID!
 			name: String
-			tracks: [Track!]!
+			tracks(first: Int): [Track!]!
 		}
 	`,
 	resolvers: {
@@ -203,6 +203,7 @@ export const schema = createSchema<ContextEnv>({
 		Album: {
 			artist: (parent, _args, ctx, info) => {
 				const albumSelection = getFieldInfo(info, 'albums');
+				// don't do this, remove later
 				if (albumSelection) {
 					const first = Number(albumSelection.args.first) || 20;
 					const dataloader = getArtistsWithAlbumsBatchDataloader(ctx, first);
@@ -219,34 +220,54 @@ export const schema = createSchema<ContextEnv>({
 		},
 		Artist: {
 			albums: (parent, args, ctx, info) => {
+				// prone to n+1
+				if (parent.albums) return parent.albums;
 				const tracksSelection = getFieldInfo(info, 'tracks');
-				return Boolean(parent.albums)
-					? parent.albums
-					: ctx.db.query.album.findMany({
-							where: eq(album.artistId, parent.artistId),
-							limit: args.first || 20,
-							with: {
-								tracks: tracksSelection
-									? { limit: Number(tracksSelection.args.first) || 20 }
-									: undefined,
-							},
-					  });
+				return ctx.db.query.album.findMany({
+					where: eq(album.artistId, parent.artistId),
+					limit: args.first || 20,
+					with: {
+						tracks: tracksSelection
+							? { limit: Number(tracksSelection.args.first) || 20 }
+							: undefined,
+					},
+				});
 			},
 		},
 		Track: {
 			mediaType: (parent, _args, ctx) => {
+				if (parent.mediaType) return parent.mediaType;
 				return ctx.dataloaders.getMediaTypeBatch.load(parent.mediaTypeId);
 			},
 			genre: (parent, _args, ctx) => {
+				if (parent.genre) return parent.genre;
 				return ctx.dataloaders.getGenreBatch.load(parent.genreId);
 			},
 			album: (parent, _args, ctx) => {
+				if (parent.album) return parent.album;
 				return ctx.dataloaders.getAlbumBatch.load(parent.albumId);
 			},
 			playlists: (parent, args, ctx) => {
+				if (parent.playlists) return parent.playlists;
 				const first = Number(args.first) || 20;
 				const dataloader = getPlaylistsBatchDataloader(ctx, first);
 				return dataloader.load(parent.trackId);
+			},
+		},
+		Playlist: {
+			tracks: (parent, args, ctx) => {
+				if (parent.tracks) return parent.tracks;
+				const first = Number(args.first) || 20;
+				const dataloader = getPlaylistTracksBatchDataloader(ctx, first);
+				return dataloader.load(parent.playlistId);
+			},
+		},
+		Genre: {
+			tracks: (parent, args, ctx) => {
+				if (parent.tracks) return parent.tracks;
+				const first = Number(args.first) || 20;
+				const dataloader = getGenreTracksBatchDataloader(ctx, first);
+				return dataloader.load(parent.playlistId);
 			},
 		},
 	},
@@ -275,4 +296,21 @@ function getPlaylistsBatchDataloader(ctx: ContextEnv & YogaInitialContext, first
 			dataloaders.getTrackPlaylistsBatchDataloader(first);
 	}
 	return ctx.dataloaders.getTrackPlaylistsBatch.first[first];
+}
+
+function getPlaylistTracksBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getPlaylistTracksBatch.first[first]) {
+		dataloaders.getPlaylistTracksBatch.first[first] =
+			dataloaders.getPlaylistTracksBatchDataloader(first);
+	}
+	return ctx.dataloaders.getPlaylistTracksBatch.first[first];
+}
+
+function getGenreTracksBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getGenreTracksBatch.first[first]) {
+		dataloaders.getGenreTracksBatch.first[first] = dataloaders.getGenreTracksBatchDataloader(first);
+	}
+	return ctx.dataloaders.getGenreTracksBatch.first[first];
 }

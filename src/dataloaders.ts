@@ -24,6 +24,12 @@ export function createDataloaders(db: DB) {
 		static getTrackPlaylistsBatch = {
 			first: {} as Record<number, ReturnType<typeof this.getTrackPlaylistsBatchDataloader>>,
 		};
+		static getPlaylistTracksBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getPlaylistTracksBatchDataloader>>,
+		};
+		static getGenreTracksBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getGenreTracksBatchDataloader>>,
+		};
 		static getArtistsWithAlbumsBatchDataloader = (first: number) =>
 			new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.artist.findMany({
@@ -68,6 +74,35 @@ export function createDataloaders(db: DB) {
 							.find((row) => row.trackId === key)
 							?.playlistTracks.map((playlistTrack) => playlistTrack.playlist) ||
 						new Error('artist not found')
+				);
+			});
+		static getPlaylistTracksBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				const rows = await db.query.playlist.findMany({
+					columns: { playlistId: true },
+					where: inArray(playlistTrack.playlistId, keys as number[]),
+					with: { playlistTracks: { columns: {}, with: { track: true }, limit: first } },
+				});
+
+				return keys.map(
+					(key) =>
+						rows
+							.find((row) => row.playlistId === key)
+							?.playlistTracks.map((playlistTrack) => playlistTrack.track) ||
+						new Error('artist not found')
+				);
+			});
+
+		static getGenreTracksBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				const rows = await db.query.genre.findMany({
+					columns: { genreId: true },
+					where: inArray(genre.genreId, keys as number[]),
+					with: { tracks: { limit: first } },
+				});
+
+				return keys.map(
+					(key) => rows.find((row) => row.genreId === key)?.tracks || new Error('genre not found')
 				);
 			});
 		static getAlbumsByArtistIdBatch = new Dataloader(async (keys: readonly number[]) => {
