@@ -1,8 +1,9 @@
 import { createSchema, YogaInitialContext } from 'graphql-yoga';
 import { eq } from 'drizzle-orm';
-import { album, artist } from './db/schema';
+import { album, artist, genre } from './db/schema';
 import { ContextEnv } from './env';
 import { getFieldInfo } from './util';
+import { GraphQLError } from 'graphql';
 
 export const schema = createSchema<ContextEnv>({
 	typeDefs: /* GraphQL */ `
@@ -12,13 +13,15 @@ export const schema = createSchema<ContextEnv>({
 			albums(limit: Int, offset: Int): [Album!]!
 			artist(id: ID!): Artist
 			artists(limit: Int, offset: Int): [Artist!]!
+			genres(limit: Int, offset: Int): [Genre!]!
+			genre(id: ID, name: String): Genre
 		}
 
 		type Album {
 			albumId: ID
 			title: String
 			artistId: Int
-			artist: Artist
+			artist: Artist!
 			tracks(first: Int): [Track!]!
 		}
 		type Artist {
@@ -34,9 +37,28 @@ export const schema = createSchema<ContextEnv>({
 			bytes: Int
 			unitPrice: String
 			albumId: Int
-			album: Album
+			album: Album!
 			mediaTypeId: Int
+			mediaType: MediaType!
 			genreId: Int
+			genre: Genre!
+			playlistId: Int
+			playlists(first: Int): [Playlist!]!
+		}
+		type MediaType {
+			mediaTypeId: ID
+			name: String
+			tracks: [Track!]!
+		}
+		type Genre {
+			genreId: ID
+			name: String
+			tracks: [Track!]!
+		}
+		type Playlist {
+			playlistId: ID
+			name: String
+			tracks: [Track!]!
 		}
 	`,
 	resolvers: {
@@ -77,6 +99,7 @@ export const schema = createSchema<ContextEnv>({
 			artists: (_, args, ctx, info) => {
 				const albumSelection = getFieldInfo(info, 'albums');
 				// max 100 because cloudflare d1 has "Maximum bound parameters per query" = 100
+				// source: https://developers.cloudflare.com/d1/platform/limits/
 				// you can hit this limit when you get albums with artist, if unique artist ids is more than 100
 				// artist dataloader will error
 				return ctx.db.query.artist.findMany({
@@ -84,6 +107,41 @@ export const schema = createSchema<ContextEnv>({
 					offset: args.offset ?? 0,
 					with: {
 						albums: albumSelection ? { limit: Number(albumSelection.args.first) || 20 } : undefined,
+					},
+				});
+			},
+			genre: (_, args, ctx, info) => {
+				if (!args.id && !args.name) throw new GraphQLError('either id or name must be defined');
+				const trackSelection = getFieldInfo(info, 'tracks');
+				if (args.id) {
+					return ctx.db.query.genre.findFirst({
+						where: eq(genre.genreId, args.id),
+						with: {
+							tracks: trackSelection
+								? { limit: Number(trackSelection.args.first) || 20 }
+								: undefined,
+						},
+					});
+				}
+				if (args.name) {
+					return ctx.db.query.genre.findFirst({
+						where: eq(genre.name, args.name),
+						with: {
+							tracks: trackSelection
+								? { limit: Number(trackSelection.args.first) || 20 }
+								: undefined,
+						},
+					});
+				}
+			},
+
+			genres: (_, args, ctx, info) => {
+				const trackSelection = getFieldInfo(info, 'tracks');
+				return ctx.db.query.genre.findMany({
+					limit: Math.min(args.limit || 20, 100),
+					offset: args.offset ?? 0,
+					with: {
+						tracks: trackSelection ? { limit: Number(trackSelection.args.first) || 20 } : undefined,
 					},
 				});
 			},
@@ -99,15 +157,42 @@ export const schema = createSchema<ContextEnv>({
 					return ctx.dataloaders.getArtistsBatch.load(parent.artistId);
 				}
 			},
+			tracks: (parent, args, ctx, info) => {
+				const first = Number(args.first) || 20;
+				const dataloader = getAlbumTracksBatchDataloader(ctx, first);
+				return dataloader.load(parent.albumId);
+			},
 		},
 		Artist: {
-			albums: (parent, args, ctx) => {
+			albums: (parent, args, ctx, info) => {
+				const tracksSelection = getFieldInfo(info, 'tracks');
 				return Boolean(parent.albums)
 					? parent.albums
 					: ctx.db.query.album.findMany({
 							where: eq(album.artistId, parent.artistId),
 							limit: args.first || 20,
+							with: {
+								tracks: tracksSelection
+									? { limit: Number(tracksSelection.args.first) || 20 }
+									: undefined,
+							},
 					  });
+			},
+		},
+		Track: {
+			mediaType: (parent, _args, ctx) => {
+				return ctx.dataloaders.getMediaTypeBatch.load(parent.mediaTypeId);
+			},
+			genre: (parent, _args, ctx) => {
+				return ctx.dataloaders.getGenreBatch.load(parent.genreId);
+			},
+			album: (parent, _args, ctx) => {
+				return ctx.dataloaders.getAlbumBatch.load(parent.albumId);
+			},
+			playlists: (parent, args, ctx) => {
+				const first = Number(args.first) || 20;
+				const dataloader = getPlaylistsBatchDataloader(ctx, first);
+				return dataloader.load(parent.trackId);
 			},
 		},
 	},
@@ -119,4 +204,21 @@ function getArtistsWithAlbumsBatchDataloader(ctx: ContextEnv & YogaInitialContex
 			ctx.dataloaders.getArtistsWithAlbumsBatchDataloader(first);
 	}
 	return ctx.dataloaders.getArtistsWithAlbumsBatch.first[first];
+}
+
+function getAlbumTracksBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	if (!ctx.dataloaders.getAlbumTracksBatch.first[first]) {
+		ctx.dataloaders.getAlbumTracksBatch.first[first] =
+			ctx.dataloaders.getAlbumTracksBatchDataloader(first);
+	}
+	return ctx.dataloaders.getAlbumTracksBatch.first[first];
+}
+
+function getPlaylistsBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getTrackPlaylistsBatch.first[first]) {
+		dataloaders.getTrackPlaylistsBatch.first[first] =
+			dataloaders.getTrackPlaylistsBatchDataloader(first);
+	}
+	return ctx.dataloaders.getTrackPlaylistsBatch.first[first];
 }

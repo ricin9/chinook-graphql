@@ -1,7 +1,7 @@
 import Dataloader from 'dataloader';
 import { DB } from './db';
 import { inArray } from 'drizzle-orm';
-import { artist } from './db/schema';
+import { album, artist, genre, mediaType, playlistTrack, track } from './db/schema';
 
 export function createDataloaders(db: DB) {
 	return class {
@@ -18,11 +18,17 @@ export function createDataloaders(db: DB) {
 		static getArtistsWithAlbumsBatch = {
 			first: {} as Record<number, ReturnType<typeof this.getArtistsWithAlbumsBatchDataloader>>,
 		};
-		static getArtistsWithAlbumsBatchDataloader = (limit: number) =>
+		static getAlbumTracksBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getAlbumTracksBatchDataloader>>,
+		};
+		static getTrackPlaylistsBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getTrackPlaylistsBatchDataloader>>,
+		};
+		static getArtistsWithAlbumsBatchDataloader = (first: number) =>
 			new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.artist.findMany({
 					where: inArray(artist.artistId, keys as number[]),
-					with: { albums: { limit: limit } },
+					with: { albums: { limit: first } },
 				});
 
 				for (const row of rows) {
@@ -33,11 +39,65 @@ export function createDataloaders(db: DB) {
 					(key) => rows.find((row) => row.artistId === key) || new Error('artist not found')
 				);
 			});
+
+		static getAlbumTracksBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				// could be better, could use only tracks album & Object.groupBy
+				const rows = await db.query.album.findMany({
+					columns: { albumId: true },
+					where: inArray(album.albumId, keys as number[]),
+					with: { tracks: { limit: first } },
+				});
+
+				return keys.map(
+					(key) => rows.find((row) => row.albumId === key)?.tracks || new Error('artist not found')
+				);
+			});
+		static getTrackPlaylistsBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				// could be better
+				const rows = await db.query.track.findMany({
+					columns: { trackId: true },
+					where: inArray(playlistTrack.trackId, keys as number[]),
+					with: { playlistTracks: { columns: {}, with: { playlist: true }, limit: first } },
+				});
+
+				return keys.map(
+					(key) =>
+						rows
+							.find((row) => row.trackId === key)
+							?.playlistTracks.map((playlistTrack) => playlistTrack.playlist) ||
+						new Error('artist not found')
+				);
+			});
 		static getAlbumsByArtistIdBatch = new Dataloader(async (keys: readonly number[]) => {
 			const rows = await db.query.album.findMany({
 				where: inArray(artist.artistId, keys as number[]),
 			});
 			return keys.map((key) => rows.filter((row) => row.artistId === key));
+		});
+
+		static getMediaTypeBatch = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.mediaType.findMany({
+				where: inArray(mediaType.mediaTypeId, keys as number[]),
+			});
+
+			return keys.map((key) => rows.find((row) => row.mediaTypeId === key));
+		});
+		static getGenreBatch = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.genre.findMany({
+				where: inArray(genre.genreId, keys as number[]),
+			});
+
+			return keys.map((key) => rows.find((row) => row.genreId === key));
+		});
+
+		static getAlbumBatch = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.album.findMany({
+				where: inArray(album.albumId, keys as number[]),
+			});
+
+			return keys.map((key) => rows.find((row) => row.albumId === key));
 		});
 	};
 }
