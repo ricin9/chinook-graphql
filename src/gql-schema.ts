@@ -1,6 +1,6 @@
 import { createSchema, YogaInitialContext } from 'graphql-yoga';
 import { eq } from 'drizzle-orm';
-import { album, artist, genre } from './db/schema';
+import { album, artist, genre, playlist } from './db/schema';
 import { ContextEnv } from './env';
 import { getFieldInfo } from './util';
 import { GraphQLError } from 'graphql';
@@ -15,6 +15,8 @@ export const schema = createSchema<ContextEnv>({
 			artists(limit: Int, offset: Int): [Artist!]!
 			genres(limit: Int, offset: Int): [Genre!]!
 			genre(id: ID, name: String): Genre
+			playlist(id: ID!): Playlist
+			playlists(limit: Int, offset: Int): [Playlist!]!
 		}
 
 		type Album {
@@ -144,6 +146,58 @@ export const schema = createSchema<ContextEnv>({
 						tracks: trackSelection ? { limit: Number(trackSelection.args.first) || 20 } : undefined,
 					},
 				});
+			},
+
+			playlist: async (_, args, ctx, info) => {
+				const trackSelection = getFieldInfo(info, 'tracks');
+
+				let row = await ctx.db.query.playlist.findFirst({
+					where: eq(playlist.playlistId, args.id),
+					with: {
+						playlistTracks: trackSelection
+							? {
+									columns: {},
+									with: { track: true },
+									limit: Number(trackSelection.args.first) || 20,
+							  }
+							: undefined,
+					},
+				});
+
+				if (!row || !trackSelection) return row;
+				return {
+					playlistId: row.playlistId,
+					name: row.name,
+					tracks: row.playlistTracks.map(
+						(playlistTrack) => (playlistTrack as Record<string, any>).track as any
+					),
+				};
+			},
+			playlists: async (_, args, ctx, info) => {
+				const trackSelection = getFieldInfo(info, 'tracks');
+
+				let rows = await ctx.db.query.playlist.findMany({
+					limit: Math.min(args.limit || 20, 100),
+					offset: args.offset ?? 0,
+					with: {
+						playlistTracks: trackSelection
+							? {
+									columns: {},
+									with: { track: true },
+									limit: Number(trackSelection.args.first) || 20,
+							  }
+							: undefined,
+					},
+				});
+
+				if (!trackSelection) return rows;
+				return rows.map((row) => ({
+					playlistId: row.playlistId,
+					name: row.name,
+					tracks: row.playlistTracks.map(
+						(playlistTrack) => (playlistTrack as Record<string, any>).track as any
+					),
+				}));
 			},
 		},
 		Album: {

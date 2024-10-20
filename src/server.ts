@@ -7,6 +7,27 @@ import { createDataloaders } from './dataloaders';
 const yoga = createYoga<ContextEnv>({
 	schema,
 	graphqlEndpoint: '/',
+	graphiql: {
+		defaultQuery: /* GraphQL */ `
+			{
+				genre(name: "Rock") {
+					genreId
+					name
+					tracks {
+						name
+						album {
+							title
+							artist {
+								name
+							}
+						}
+					}
+				}
+			}
+		`,
+
+		title: 'Chinook GraphQL API',
+	},
 	context: (env) => {
 		const db = getDrizzleInstnace(env.DB as D1Database);
 
