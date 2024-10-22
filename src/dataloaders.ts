@@ -1,7 +1,16 @@
 import Dataloader from 'dataloader';
 import { DB } from './db';
 import { inArray } from 'drizzle-orm';
-import { album, artist, genre, invoice, mediaType, playlistTrack, track } from './db/schema';
+import {
+	album,
+	artist,
+	customer,
+	genre,
+	invoice,
+	mediaType,
+	playlistTrack,
+	track,
+} from './db/schema';
 
 export function createDataloaders(db: DB) {
 	return class {
@@ -35,6 +44,16 @@ export function createDataloaders(db: DB) {
 			);
 		});
 
+		static getCustomersBatch = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.customer.findMany({
+				where: inArray(customer.customerId, keys as number[]),
+			});
+
+			return keys.map(
+				(key) => rows.find((row) => row.customerId === key) || new Error('customer not found')
+			);
+		});
+
 		static getArtistsWithAlbumsBatch = {
 			first: {} as Record<number, ReturnType<typeof this.getArtistsWithAlbumsBatchDataloader>>,
 		};
@@ -52,6 +71,9 @@ export function createDataloaders(db: DB) {
 		};
 		static getTrackInvoiceLinesBatch = {
 			first: {} as Record<number, ReturnType<typeof this.getTrackInvoiceLinesBatchDataloader>>,
+		};
+		static getInvoiceInvoiceLinesBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getInvoiceInvoiceLinesBatchDataloader>>,
 		};
 		static getArtistsWithAlbumsBatchDataloader = (first: number) =>
 			new Dataloader(async (keys: readonly number[]) => {
@@ -139,6 +161,20 @@ export function createDataloaders(db: DB) {
 				return keys.map(
 					(key) =>
 						rows.find((row) => row.trackId === key)?.invoiceLines || new Error('track not found')
+				);
+			});
+
+		static getInvoiceInvoiceLinesBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				const rows = await db.query.invoice.findMany({
+					columns: { invoiceId: true },
+					where: inArray(invoice.invoiceId, keys as number[]),
+					with: { invoiceLines: { limit: first } },
+				});
+
+				return keys.map(
+					(key) =>
+						rows.find((row) => row.invoiceId === key)?.invoiceLines || new Error('track not found')
 				);
 			});
 		static getAlbumsByArtistIdBatch = new Dataloader(async (keys: readonly number[]) => {

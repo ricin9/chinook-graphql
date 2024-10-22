@@ -1,6 +1,6 @@
 import { createSchema, YogaInitialContext } from 'graphql-yoga';
 import { eq } from 'drizzle-orm';
-import { album, artist, genre, invoiceLine, playlist } from './db/schema';
+import { album, artist, genre, invoice, invoiceLine, playlist } from './db/schema';
 import { ContextEnv } from './env';
 import { getFieldInfo } from './util';
 import { GraphQLError } from 'graphql';
@@ -17,6 +17,7 @@ export const schema = createSchema<ContextEnv>({
 			genre(id: ID, name: String): Genre
 			playlist(id: ID!): Playlist
 			playlists(limit: Int, offset: Int): [Playlist!]!
+			invoice(id: ID!): Invoice
 		}
 
 		type Album {
@@ -65,7 +66,6 @@ export const schema = createSchema<ContextEnv>({
 		}
 		type Invoice {
 			invoiceId: ID!
-			customerId: Int!
 			invoiceDate: String!
 			billingAddress: String
 			billingCity: String
@@ -73,6 +73,8 @@ export const schema = createSchema<ContextEnv>({
 			billingCountry: String
 			billingPostalCode: String
 			total: String!
+			customerId: Int!
+			customer: Customer!
 			invoiceLines(first: Int): [InvoiceLine!]!
 		}
 		type InvoiceLine {
@@ -83,6 +85,41 @@ export const schema = createSchema<ContextEnv>({
 			track: Track!
 			unitPrice: String!
 			quantity: String!
+		}
+		type Customer {
+			customerId: ID!
+			firstName: String!
+			lastName: String!
+			company: String
+			address: String
+			city: String
+			state: String
+			country: String
+			postalCode: String
+			phone: String
+			fax: String
+			email: String!
+			supportRepId: Int
+			SupportRep: Employee
+			invoices: [Invoice!]!
+		}
+		type Employee {
+			employeeId: ID!
+			lastName: String!
+			firstName: String!
+			title: String
+			birthDate: String
+			hireDate: String
+			address: String
+			city: String
+			state: String
+			country: String
+			postalCode: String
+			phone: String
+			fax: String
+			email: String
+			reportsTo: Int
+			reportsToEmp: Employee
 		}
 	`,
 	resolvers: {
@@ -221,6 +258,20 @@ export const schema = createSchema<ContextEnv>({
 					),
 				}));
 			},
+			invoice: (_, args, ctx, info) => {
+				const invoiceLinesField = getFieldInfo(info, 'invoiceLines');
+				const customerField = getFieldInfo(info, 'customer');
+
+				return ctx.db.query.invoice.findFirst({
+					where: eq(invoice.invoiceId, args.id),
+					with: {
+						invoiceLines: invoiceLinesField
+							? { limit: Number(invoiceLinesField.args.first) || 20 }
+							: undefined,
+						customer: customerField ? true : undefined,
+					},
+				});
+			},
 		},
 		Album: {
 			artist: (parent, _args, ctx, info) => {
@@ -308,6 +359,18 @@ export const schema = createSchema<ContextEnv>({
 				return ctx.dataloaders.getInvoicesBatch.load(parent.invoiceId);
 			},
 		},
+		Invoice: {
+			invoiceLines: (parent, args, ctx) => {
+				if (parent.invoiceLines) return parent.invoiceLines;
+				const first = Number(args.first) || 20;
+				const dataloader = getInvoiceInvoiceLinesBatchDataloader(ctx, first);
+				return dataloader.load(parent.trackId);
+			},
+			customer: (parent, _args, ctx) => {
+				if (parent.customer) return parent.customer;
+				return ctx.dataloaders.getCustomersBatch.load(parent.customerId);
+			},
+		},
 	},
 });
 
@@ -360,4 +423,16 @@ function getTrackInvoiceLinesBatchDataloader(ctx: ContextEnv & YogaInitialContex
 			dataloaders.getTrackInvoiceLinesBatchDataloader(first);
 	}
 	return ctx.dataloaders.getTrackInvoiceLinesBatch.first[first];
+}
+
+function getInvoiceInvoiceLinesBatchDataloader(
+	ctx: ContextEnv & YogaInitialContext,
+	first: number
+) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getInvoiceInvoiceLinesBatch.first[first]) {
+		dataloaders.getInvoiceInvoiceLinesBatch.first[first] =
+			dataloaders.getInvoiceInvoiceLinesBatchDataloader(first);
+	}
+	return ctx.dataloaders.getInvoiceInvoiceLinesBatch.first[first];
 }
