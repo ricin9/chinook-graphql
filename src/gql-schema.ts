@@ -306,19 +306,11 @@ export const schema = createSchema<ContextEnv>({
 		},
 		Album: {
 			artist: (parent, _args, ctx, info) => {
-				const albumSelection = getFieldInfo(info, 'albums');
-				// don't do this, remove later
-				if (albumSelection) {
-					const first = Number(albumSelection.args.first) || 20;
-					const dataloader = getArtistsWithAlbumsBatchDataloader(ctx, first);
-					return dataloader.load(parent.artistId);
-				} else {
-					return ctx.dataloaders.getArtistsBatch.load(parent.artistId);
-				}
+				return ctx.dataloaders.artists.load(parent.artistId);
 			},
 			tracks: (parent, args, ctx, info) => {
 				const first = Number(args.first) || 20;
-				const dataloader = getAlbumTracksBatchDataloader(ctx, first);
+				const dataloader = ctx.dataloaders.albumTracks(first);
 				return dataloader.load(parent.albumId);
 			},
 		},
@@ -341,20 +333,20 @@ export const schema = createSchema<ContextEnv>({
 		Track: {
 			mediaType: (parent, _args, ctx) => {
 				if (parent.mediaType) return parent.mediaType;
-				return ctx.dataloaders.getMediaTypeBatch.load(parent.mediaTypeId);
+				return ctx.dataloaders.mediatypes.load(parent.mediaTypeId);
 			},
 			genre: (parent, _args, ctx) => {
 				if (parent.genre) return parent.genre;
-				return ctx.dataloaders.getGenreBatch.load(parent.genreId);
+				return ctx.dataloaders.genres.load(parent.genreId);
 			},
 			album: (parent, _args, ctx) => {
 				if (parent.album) return parent.album;
-				return ctx.dataloaders.getAlbumBatch.load(parent.albumId);
+				return ctx.dataloaders.albums.load(parent.albumId);
 			},
 			playlists: (parent, args, ctx) => {
 				if (parent.playlists) return parent.playlists;
 				const first = Number(args.first) || 20;
-				const dataloader = getPlaylistsBatchDataloader(ctx, first);
+				const dataloader = ctx.dataloaders.trackPlaylists(first);
 				return dataloader.load(parent.trackId);
 			},
 			invoiceLines: (parent, args, ctx) => {
@@ -383,11 +375,11 @@ export const schema = createSchema<ContextEnv>({
 		InvoiceLine: {
 			track: (parent, _args, ctx) => {
 				if (parent.track) return parent.track;
-				return ctx.dataloaders.getTracksBatch.load(parent.trackId);
+				return ctx.dataloaders.tracks.load(parent.trackId);
 			},
 			invoice: (parent, _args, ctx) => {
 				if (parent.invoice) return parent.invoice;
-				return ctx.dataloaders.getInvoicesBatch.load(parent.invoiceId);
+				return ctx.dataloaders.invoices.load(parent.invoiceId);
 			},
 		},
 		Invoice: {
@@ -399,14 +391,14 @@ export const schema = createSchema<ContextEnv>({
 			},
 			customer: (parent, _args, ctx) => {
 				if (parent.customer) return parent.customer;
-				return ctx.dataloaders.getCustomersBatch.load(parent.customerId);
+				return ctx.dataloaders.customers.load(parent.customerId);
 			},
 		},
 		Customer: {
 			supportRep: (parent, _args, ctx) => {
 				if (parent.supportRep) return parent.supportRep;
 				if (!parent.supportRepId) return null;
-				return ctx.dataloaders.getEmployeesBatch.load(parent.supportRepId);
+				return ctx.dataloaders.employees.load(parent.supportRepId);
 			},
 			invoices: (parent, args, ctx) => {
 				if (parent.invoices) return parent.invoices;
@@ -418,7 +410,7 @@ export const schema = createSchema<ContextEnv>({
 		Employee: {
 			reportsToEmp: (parent, _args, ctx) => {
 				if (parent.reportsToEmp) return parent.reportsToEmp;
-				return ctx.dataloaders.getEmployeesBatch.load(parent.reportsTo);
+				return ctx.dataloaders.employees.load(parent.reportsTo);
 			},
 			customers: (parent, args, ctx) => {
 				if (parent.customers) return parent.customers;
@@ -437,55 +429,29 @@ export const schema = createSchema<ContextEnv>({
 	},
 });
 
-function getArtistsWithAlbumsBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
-	if (!ctx.dataloaders.getArtistsWithAlbumsBatch.first[first]) {
-		ctx.dataloaders.getArtistsWithAlbumsBatch.first[first] =
-			ctx.dataloaders.getArtistsWithAlbumsBatchDataloader(first);
-	}
-	return ctx.dataloaders.getArtistsWithAlbumsBatch.first[first];
-}
-
-function getAlbumTracksBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
-	if (!ctx.dataloaders.getAlbumTracksBatch.first[first]) {
-		ctx.dataloaders.getAlbumTracksBatch.first[first] =
-			ctx.dataloaders.getAlbumTracksBatchDataloader(first);
-	}
-	return ctx.dataloaders.getAlbumTracksBatch.first[first];
-}
-
-function getPlaylistsBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
-	const { dataloaders } = ctx;
-	if (!dataloaders.getTrackPlaylistsBatch.first[first]) {
-		dataloaders.getTrackPlaylistsBatch.first[first] =
-			dataloaders.getTrackPlaylistsBatchDataloader(first);
-	}
-	return ctx.dataloaders.getTrackPlaylistsBatch.first[first];
-}
-
 function getPlaylistTracksBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getPlaylistTracksBatch.first[first]) {
-		dataloaders.getPlaylistTracksBatch.first[first] =
-			dataloaders.getPlaylistTracksBatchDataloader(first);
+	if (!dataloaders.playlistTracks.first[first]) {
+		dataloaders.playlistTracks.first[first] = dataloaders.getPlaylistTracksBatchDataloader(first);
 	}
-	return ctx.dataloaders.getPlaylistTracksBatch.first[first];
+	return ctx.dataloaders.playlistTracks.first[first];
 }
 
 function getGenreTracksBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getGenreTracksBatch.first[first]) {
-		dataloaders.getGenreTracksBatch.first[first] = dataloaders.getGenreTracksBatchDataloader(first);
+	if (!dataloaders.genreTracks.first[first]) {
+		dataloaders.genreTracks.first[first] = dataloaders.getGenreTracksBatchDataloader(first);
 	}
-	return ctx.dataloaders.getGenreTracksBatch.first[first];
+	return ctx.dataloaders.genreTracks.first[first];
 }
 
 function getTrackInvoiceLinesBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getTrackInvoiceLinesBatch.first[first]) {
-		dataloaders.getTrackInvoiceLinesBatch.first[first] =
+	if (!dataloaders.trackInvoiceLines.first[first]) {
+		dataloaders.trackInvoiceLines.first[first] =
 			dataloaders.getTrackInvoiceLinesBatchDataloader(first);
 	}
-	return ctx.dataloaders.getTrackInvoiceLinesBatch.first[first];
+	return ctx.dataloaders.trackInvoiceLines.first[first];
 }
 
 function getInvoiceInvoiceLinesBatchDataloader(
@@ -493,29 +459,29 @@ function getInvoiceInvoiceLinesBatchDataloader(
 	first: number
 ) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getInvoiceInvoiceLinesBatch.first[first]) {
-		dataloaders.getInvoiceInvoiceLinesBatch.first[first] =
+	if (!dataloaders.invoiceInvoiceLines.first[first]) {
+		dataloaders.invoiceInvoiceLines.first[first] =
 			dataloaders.getInvoiceInvoiceLinesBatchDataloader(first);
 	}
-	return ctx.dataloaders.getInvoiceInvoiceLinesBatch.first[first];
+	return ctx.dataloaders.invoiceInvoiceLines.first[first];
 }
 
 function getCustomerInvoicesBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getCustomerInvoicesBatch.first[first]) {
-		dataloaders.getCustomerInvoicesBatch.first[first] =
+	if (!dataloaders.customerInvoices.first[first]) {
+		dataloaders.customerInvoices.first[first] =
 			dataloaders.getCustomerInvoicesBatchDataloader(first);
 	}
-	return ctx.dataloaders.getCustomerInvoicesBatch.first[first];
+	return ctx.dataloaders.customerInvoices.first[first];
 }
 
 function getEmployeeCustomersBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getEmployeeCustomersBatch.first[first]) {
-		dataloaders.getEmployeeCustomersBatch.first[first] =
+	if (!dataloaders.employeeCustomers.first[first]) {
+		dataloaders.employeeCustomers.first[first] =
 			dataloaders.getEmployeeCustomersBatchDataloader(first);
 	}
-	return ctx.dataloaders.getEmployeeCustomersBatch.first[first];
+	return ctx.dataloaders.employeeCustomers.first[first];
 }
 
 function getEmployeeSubordinatesBatchDataloader(
@@ -523,9 +489,9 @@ function getEmployeeSubordinatesBatchDataloader(
 	first: number
 ) {
 	const { dataloaders } = ctx;
-	if (!dataloaders.getEmployeeSubordinatesBatch.first[first]) {
-		dataloaders.getEmployeeSubordinatesBatch.first[first] =
+	if (!dataloaders.employeeSubordinates.first[first]) {
+		dataloaders.employeeSubordinates.first[first] =
 			dataloaders.getEmployeeSubordinatesBatchDataloader(first);
 	}
-	return ctx.dataloaders.getEmployeeSubordinatesBatch.first[first];
+	return ctx.dataloaders.employeeSubordinates.first[first];
 }
