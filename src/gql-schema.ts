@@ -1,6 +1,6 @@
 import { createSchema, YogaInitialContext } from 'graphql-yoga';
 import { eq } from 'drizzle-orm';
-import { album, artist, genre, invoice, invoiceLine, playlist } from './db/schema';
+import { album, artist, customer, employee, genre, invoice, playlist } from './db/schema';
 import { ContextEnv } from './env';
 import { getFieldInfo } from './util';
 import { GraphQLError } from 'graphql';
@@ -9,15 +9,23 @@ export const schema = createSchema<ContextEnv>({
 	typeDefs: /* GraphQL */ `
 		type Query {
 			hello: String
+
 			album(id: ID!): Album
 			albums(limit: Int, offset: Int): [Album!]!
+
 			artist(id: ID!): Artist
 			artists(limit: Int, offset: Int): [Artist!]!
+
 			genres(limit: Int, offset: Int): [Genre!]!
 			genre(id: ID, name: String): Genre
+
 			playlist(id: ID!): Playlist
 			playlists(limit: Int, offset: Int): [Playlist!]!
+
 			invoice(id: ID!): Invoice
+
+			employee(id: ID!): Employee
+			employees(limit: Int, offset: Int): [Employee!]!
 		}
 
 		type Album {
@@ -100,8 +108,8 @@ export const schema = createSchema<ContextEnv>({
 			fax: String
 			email: String!
 			supportRepId: Int
-			SupportRep: Employee
-			invoices: [Invoice!]!
+			supportRep: Employee
+			invoices(first: Int): [Invoice!]!
 		}
 		type Employee {
 			employeeId: ID!
@@ -120,6 +128,8 @@ export const schema = createSchema<ContextEnv>({
 			email: String
 			reportsTo: Int
 			reportsToEmp: Employee
+			subordinates: [Employee!]!
+			customers(first: Int): [Customer!]!
 		}
 	`,
 	resolvers: {
@@ -272,6 +282,27 @@ export const schema = createSchema<ContextEnv>({
 					},
 				});
 			},
+			employee: (_, args, ctx, info) => {
+				return ctx.db.query.employee.findFirst({ where: eq(employee.employeeId, args.id) });
+			},
+			employees: (_, args, ctx, info) => {
+				const reportsToField = getFieldInfo(info, 'reportsTo');
+				const customersField = getFieldInfo(info, 'customers');
+				const subordinatesField = getFieldInfo(info, 'subordinates');
+				return ctx.db.query.employee.findMany({
+					limit: Math.min(args.limit || 20, 100),
+					offset: args.offset ?? 0,
+					with: {
+						customers: customersField
+							? { limit: Number(customersField.args.first) || 20 }
+							: undefined,
+						employee: reportsToField ? true : undefined,
+						employees: subordinatesField
+							? { limit: Number(subordinatesField.args.first) || 20 }
+							: undefined,
+					},
+				});
+			},
 		},
 		Album: {
 			artist: (parent, _args, ctx, info) => {
@@ -371,6 +402,38 @@ export const schema = createSchema<ContextEnv>({
 				return ctx.dataloaders.getCustomersBatch.load(parent.customerId);
 			},
 		},
+		Customer: {
+			supportRep: (parent, _args, ctx) => {
+				if (parent.supportRep) return parent.supportRep;
+				if (!parent.supportRepId) return null;
+				return ctx.dataloaders.getEmployeesBatch.load(parent.supportRepId);
+			},
+			invoices: (parent, args, ctx) => {
+				if (parent.invoices) return parent.invoices;
+				const first = Number(args.first) || 20;
+				const dataloader = getCustomerInvoicesBatchDataloader(ctx, first);
+				return dataloader.load(parent.customerId);
+			},
+		},
+		Employee: {
+			reportsToEmp: (parent, _args, ctx) => {
+				if (parent.reportsToEmp) return parent.reportsToEmp;
+				return ctx.dataloaders.getEmployeesBatch.load(parent.reportsTo);
+			},
+			customers: (parent, args, ctx) => {
+				if (parent.customers) return parent.customers;
+				const first = Number(args.first) || 20;
+				const dataloader = getEmployeeCustomersBatchDataloader(ctx, first);
+				return dataloader.load(parent.employeeId);
+			},
+			subordinates: (parent, args, ctx) => {
+				if (parent.subordinates) return parent.subordinates;
+				if (parent.employees) return parent.employees;
+				const first = Number(args.first) || 20;
+				const dataloader = getEmployeeSubordinatesBatchDataloader(ctx, first);
+				return dataloader.load(parent.employeeId);
+			},
+		},
 	},
 });
 
@@ -435,4 +498,34 @@ function getInvoiceInvoiceLinesBatchDataloader(
 			dataloaders.getInvoiceInvoiceLinesBatchDataloader(first);
 	}
 	return ctx.dataloaders.getInvoiceInvoiceLinesBatch.first[first];
+}
+
+function getCustomerInvoicesBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getCustomerInvoicesBatch.first[first]) {
+		dataloaders.getCustomerInvoicesBatch.first[first] =
+			dataloaders.getCustomerInvoicesBatchDataloader(first);
+	}
+	return ctx.dataloaders.getCustomerInvoicesBatch.first[first];
+}
+
+function getEmployeeCustomersBatchDataloader(ctx: ContextEnv & YogaInitialContext, first: number) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getEmployeeCustomersBatch.first[first]) {
+		dataloaders.getEmployeeCustomersBatch.first[first] =
+			dataloaders.getEmployeeCustomersBatchDataloader(first);
+	}
+	return ctx.dataloaders.getEmployeeCustomersBatch.first[first];
+}
+
+function getEmployeeSubordinatesBatchDataloader(
+	ctx: ContextEnv & YogaInitialContext,
+	first: number
+) {
+	const { dataloaders } = ctx;
+	if (!dataloaders.getEmployeeSubordinatesBatch.first[first]) {
+		dataloaders.getEmployeeSubordinatesBatch.first[first] =
+			dataloaders.getEmployeeSubordinatesBatchDataloader(first);
+	}
+	return ctx.dataloaders.getEmployeeSubordinatesBatch.first[first];
 }

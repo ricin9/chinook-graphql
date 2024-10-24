@@ -5,6 +5,7 @@ import {
 	album,
 	artist,
 	customer,
+	employee,
 	genre,
 	invoice,
 	mediaType,
@@ -53,6 +54,15 @@ export function createDataloaders(db: DB) {
 				(key) => rows.find((row) => row.customerId === key) || new Error('customer not found')
 			);
 		});
+		static getEmployeesBatch = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.employee.findMany({
+				where: inArray(employee.employeeId, keys as number[]),
+			});
+
+			return keys.map(
+				(key) => rows.find((row) => row.employeeId === key) || new Error('customer not found')
+			);
+		});
 
 		static getArtistsWithAlbumsBatch = {
 			first: {} as Record<number, ReturnType<typeof this.getArtistsWithAlbumsBatchDataloader>>,
@@ -74,6 +84,15 @@ export function createDataloaders(db: DB) {
 		};
 		static getInvoiceInvoiceLinesBatch = {
 			first: {} as Record<number, ReturnType<typeof this.getInvoiceInvoiceLinesBatchDataloader>>,
+		};
+		static getCustomerInvoicesBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getCustomerInvoicesBatchDataloader>>,
+		};
+		static getEmployeeCustomersBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getEmployeeCustomersBatchDataloader>>,
+		};
+		static getEmployeeSubordinatesBatch = {
+			first: {} as Record<number, ReturnType<typeof this.getEmployeeSubordinatesBatchDataloader>>,
 		};
 		static getArtistsWithAlbumsBatchDataloader = (first: number) =>
 			new Dataloader(async (keys: readonly number[]) => {
@@ -177,10 +196,47 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.invoiceId === key)?.invoiceLines || new Error('track not found')
 				);
 			});
+		static getCustomerInvoicesBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				const rows = await db.query.customer.findMany({
+					columns: { customerId: true },
+					where: inArray(customer.customerId, keys as number[]),
+					with: { invoices: { limit: first } },
+				});
+
+				return keys.map(
+					(key) =>
+						rows.find((row) => row.customerId === key)?.invoices || new Error('track not found')
+				);
+			});
+		static getEmployeeCustomersBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				const rows = await db.query.employee.findMany({
+					columns: { employeeId: true },
+					where: inArray(employee.employeeId, keys as number[]),
+					with: { customers: { limit: first } },
+				});
+
+				return keys.map((key) => rows.find((row) => row.employeeId === key)?.customers || []);
+			});
+		static getEmployeeSubordinatesBatchDataloader = (first: number) =>
+			new Dataloader(async (keys: readonly number[]) => {
+				const rows = await db.query.employee.findMany({
+					columns: { employeeId: true },
+					where: inArray(employee.employeeId, keys as number[]),
+					with: { employees: { limit: first } },
+				});
+
+				return keys.map((key) => rows.find((row) => row.employeeId === key)?.employees || []);
+			});
 		static getAlbumsByArtistIdBatch = new Dataloader(async (keys: readonly number[]) => {
 			const rows = await db.query.album.findMany({
 				where: inArray(artist.artistId, keys as number[]),
 			});
+
+			for (let i = 0; i < rows.length; i++) {
+				this.getAlbumBatch.prime(rows[i].albumId, rows[i]);
+			}
 			return keys.map((key) => rows.filter((row) => row.artistId === key));
 		});
 
