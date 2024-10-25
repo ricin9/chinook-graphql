@@ -117,30 +117,14 @@ export function createDataloaders(db: DB) {
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
-		static playlistTracks = {
-			first: {} as Record<number, ReturnType<typeof this.getPlaylistTracksBatchDataloader>>,
-		};
-		static genreTracks = {
-			first: {} as Record<number, ReturnType<typeof this.getGenreTracksBatchDataloader>>,
-		};
-		static trackInvoiceLines = {
-			first: {} as Record<number, ReturnType<typeof this.getTrackInvoiceLinesBatchDataloader>>,
-		};
-		static invoiceInvoiceLines = {
-			first: {} as Record<number, ReturnType<typeof this.getInvoiceInvoiceLinesBatchDataloader>>,
-		};
-		static customerInvoices = {
-			first: {} as Record<number, ReturnType<typeof this.getCustomerInvoicesBatchDataloader>>,
-		};
-		static employeeCustomers = {
-			first: {} as Record<number, ReturnType<typeof this.getEmployeeCustomersBatchDataloader>>,
-		};
-		static employeeSubordinates = {
-			first: {} as Record<number, ReturnType<typeof this.getEmployeeSubordinatesBatchDataloader>>,
-		};
+		static playlistTracks = (first: number) => {
+			const dataloaderName = 'playlistTracks';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
 
-		static getPlaylistTracksBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.playlist.findMany({
 					columns: { playlistId: true },
 					where: inArray(playlistTrack.playlistId, keys as number[]),
@@ -156,8 +140,18 @@ export function createDataloaders(db: DB) {
 				);
 			});
 
-		static getGenreTracksBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
+
+		static genreTracks = (first: number) => {
+			const dataloaderName = 'genreTracks';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
+
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.genre.findMany({
 					columns: { genreId: true },
 					where: inArray(genre.genreId, keys as number[]),
@@ -168,8 +162,18 @@ export function createDataloaders(db: DB) {
 					(key) => rows.find((row) => row.genreId === key)?.tracks || new Error('genre not found')
 				);
 			});
-		static getTrackInvoiceLinesBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
+
+		static trackInvoiceLines = (first: number) => {
+			const dataloaderName = 'trackInvoiceLines';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
+
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.track.findMany({
 					columns: { trackId: true },
 					where: inArray(track.trackId, keys as number[]),
@@ -181,9 +185,18 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.trackId === key)?.invoiceLines || new Error('track not found')
 				);
 			});
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
 
-		static getInvoiceInvoiceLinesBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+		static invoiceInvoiceLines = (first: number) => {
+			const dataloaderName = 'invoiceInvoiceLines';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
+
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.invoice.findMany({
 					columns: { invoiceId: true },
 					where: inArray(invoice.invoiceId, keys as number[]),
@@ -195,8 +208,18 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.invoiceId === key)?.invoiceLines || new Error('track not found')
 				);
 			});
-		static getCustomerInvoicesBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
+
+		static customerInvoices = (first: number) => {
+			const dataloaderName = 'customerInvoices';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
+
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.customer.findMany({
 					columns: { customerId: true },
 					where: inArray(customer.customerId, keys as number[]),
@@ -208,8 +231,17 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.customerId === key)?.invoices || new Error('track not found')
 				);
 			});
-		static getEmployeeCustomersBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
+		static employeeCustomers = (first: number) => {
+			const dataloaderName = 'employeeCustomers';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
+
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.employee.findMany({
 					columns: { employeeId: true },
 					where: inArray(employee.employeeId, keys as number[]),
@@ -218,8 +250,18 @@ export function createDataloaders(db: DB) {
 
 				return keys.map((key) => rows.find((row) => row.employeeId === key)?.customers || []);
 			});
-		static getEmployeeSubordinatesBatchDataloader = (first: number) =>
-			new Dataloader(async (keys: readonly number[]) => {
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
+
+		static employeeSubordinates = (first: number) => {
+			const dataloaderName = 'employeeSubordinates';
+			const savedDataloder = this.paginatedBatches[dataloaderName]?.first[first];
+			if (savedDataloder) {
+				return savedDataloder;
+			}
+
+			const dataloader = new Dataloader(async (keys: readonly number[]) => {
 				const rows = await db.query.employee.findMany({
 					columns: { employeeId: true },
 					where: inArray(employee.employeeId, keys as number[]),
@@ -228,6 +270,10 @@ export function createDataloaders(db: DB) {
 
 				return keys.map((key) => rows.find((row) => row.employeeId === key)?.employees || []);
 			});
+			this.paginatedBatches[dataloaderName].first[first] = dataloader;
+			return dataloader;
+		};
+
 		static artistAlbums = new Dataloader(async (keys: readonly number[]) => {
 			const rows = await db.query.album.findMany({
 				where: inArray(artist.artistId, keys as number[]),
