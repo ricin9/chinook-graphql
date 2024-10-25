@@ -1,7 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { customer } from '../db/schema';
-import { getFieldInfo } from '../util';
+import { formatZodError, getFieldInfo } from '../util';
 import { Resolver } from '../Resolver';
+import { createInsertSchema } from 'drizzle-zod';
+import { GraphQLError } from 'graphql';
+import { z } from 'zod';
 
 export const customerQueries: Resolver = {
 	customer: (_, args, ctx, info) => {
@@ -33,15 +36,60 @@ export const customerQueries: Resolver = {
 	},
 };
 
+const newCustomerSchema = createInsertSchema(customer, { email: z.string().email() }).omit({
+	customerId: true,
+});
+
+const updateCustomerSchema = newCustomerSchema.partial();
+
 export const customerMutations: Resolver = {
 	newCustomer: async (_, args, ctx, info) => {
-		// TODO: zod validation
-		const { input } = args;
+		const { success, data, error } = newCustomerSchema.safeParse(args.input);
+		if (!success) {
+			throw new GraphQLError(formatZodError(error));
+		}
 
-		const [newCustomer] = await ctx.db.insert(customer).values(input).returning();
-		return newCustomer;
+		try {
+			const [newCustomer] = await ctx.db.insert(customer).values(data).returning();
+			return newCustomer;
+		} catch (err) {
+			if (
+				err instanceof Error &&
+				err.message.includes('D1_ERROR') &&
+				err.message.includes('SQLITE_CONSTRAINT')
+			) {
+				throw new GraphQLError('supportRepId is invalid');
+			}
+			throw new Error();
+		}
+	},
+
+	updateCustomer: async (_, args, ctx, info) => {
+		const { success, data, error } = updateCustomerSchema.safeParse(args.input);
+		if (!success) {
+			throw new GraphQLError(formatZodError(error));
+		}
+
+		try {
+			const [updatedCustomer] = await ctx.db
+				.update(customer)
+				.set(data)
+				.where(eq(customer.customerId, Number(args.id)))
+				.returning();
+			return updatedCustomer;
+		} catch (err) {
+			if (
+				err instanceof Error &&
+				err.message.includes('D1_ERROR') &&
+				err.message.includes('SQLITE_CONSTRAINT')
+			) {
+				throw new GraphQLError('supportRepId is invalid');
+			}
+			throw new Error();
+		}
 	},
 };
+
 export const Customer: Resolver = {
 	supportRep: (parent, _args, ctx) => {
 		if (parent.supportRep) return parent.supportRep;

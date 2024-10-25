@@ -28,6 +28,7 @@ export const typeDefs = /* GraphQL */ `
 
 	type Mutation {
 		newCustomer(input: NewCustomerInput!): Customer!
+		updateCustomer(id: ID!, input: UpdateCustomerInput!): Customer
 	}
 
 	type Album {
@@ -147,6 +148,20 @@ export const typeDefs = /* GraphQL */ `
 		phone: String
 		fax: String
 		email: String!
+		supportRepId: Int
+	}
+	input UpdateCustomerInput {
+		firstName: String
+		lastName: String
+		company: String
+		address: String
+		city: String
+		state: String
+		country: String
+		postalCode: String
+		phone: String
+		fax: String
+		email: String
 		supportRepId: Int
 	}
 `;

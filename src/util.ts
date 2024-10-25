@@ -1,4 +1,5 @@
 import { GraphQLResolveInfo } from 'graphql';
+import { ZodError } from 'zod';
 
 export function getFieldInfo(info: GraphQLResolveInfo, fieldName: string) {
 	const fieldSelection = info.fieldNodes[0].selectionSet!.selections.find(
@@ -15,4 +16,8 @@ export function getFieldInfo(info: GraphQLResolveInfo, fieldName: string) {
 	return {
 		args,
 	};
+}
+
+export function formatZodError(error: ZodError): string {
+	return error.errors.map((e) => `${e.path.join(',')}: ${e.message}`).join(',');
 }
