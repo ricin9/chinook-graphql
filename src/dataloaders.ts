@@ -121,6 +121,8 @@ export function createDataloaders(db: DB) {
 				);
 			});
 
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -147,6 +149,8 @@ export function createDataloaders(db: DB) {
 				);
 			});
 
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -173,6 +177,8 @@ export function createDataloaders(db: DB) {
 				);
 			});
 
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -195,6 +201,8 @@ export function createDataloaders(db: DB) {
 					(key) => rows.find((row) => row.genreId === key)?.tracks || new Error('genre not found')
 				);
 			});
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -218,6 +226,8 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.trackId === key)?.invoiceLines || new Error('track not found')
 				);
 			});
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -241,6 +251,8 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.invoiceId === key)?.invoiceLines || new Error('track not found')
 				);
 			});
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -264,6 +276,8 @@ export function createDataloaders(db: DB) {
 						rows.find((row) => row.customerId === key)?.invoices || new Error('track not found')
 				);
 			});
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -283,6 +297,8 @@ export function createDataloaders(db: DB) {
 
 				return keys.map((key) => rows.find((row) => row.employeeId === key)?.customers || []);
 			});
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
@@ -303,6 +319,8 @@ export function createDataloaders(db: DB) {
 
 				return keys.map((key) => rows.find((row) => row.employeeId === key)?.employees || []);
 			});
+			if (!this.paginatedBatches[dataloaderName])
+				this.paginatedBatches[dataloaderName] = { first: {} };
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};

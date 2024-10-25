@@ -2,7 +2,7 @@ import { createSchema } from 'graphql-yoga';
 import { ContextEnv } from './env';
 import { Album, albumQueries } from './resolvers/album';
 import { Artist, artistQueries } from './resolvers/artist';
-import { Customer, customerQueries } from './resolvers/customer';
+import { Customer, customerMutations, customerQueries } from './resolvers/customer';
 import { Employee, employeeQueries } from './resolvers/employee';
 import { Genre, genreQueries } from './resolvers/genre';
 import { Invoice, invoiceQueries } from './resolvers/invoice';
@@ -24,6 +24,9 @@ export const schema = createSchema<ContextEnv>({
 			...invoiceQueries,
 			...customerQueries,
 			...employeeQueries,
+		},
+		Mutation: {
+			...customerMutations,
 		},
 		Album,
 		Artist,

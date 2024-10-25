@@ -26,6 +26,10 @@ export const typeDefs = /* GraphQL */ `
 		customers(limit: Int, offset: Int): [Customer!]!
 	}
 
+	type Mutation {
+		newCustomer(input: NewCustomerInput!): Customer!
+	}
+
 	type Album {
 		albumId: ID!
 		title: String!
@@ -128,5 +132,21 @@ export const typeDefs = /* GraphQL */ `
 		reportsToEmp: Employee
 		subordinates: [Employee!]!
 		customers(first: Int): [Customer!]!
+	}
+
+	# Mutation inputs
+	input NewCustomerInput {
+		firstName: String!
+		lastName: String!
+		company: String
+		address: String
+		city: String
+		state: String
+		country: String
+		postalCode: String
+		phone: String
+		fax: String
+		email: String!
+		supportRepId: Int
 	}
 `;

@@ -33,6 +33,15 @@ export const customerQueries: Resolver = {
 	},
 };
 
+export const customerMutations: Resolver = {
+	newCustomer: async (_, args, ctx, info) => {
+		// TODO: zod validation
+		const { input } = args;
+
+		const [newCustomer] = await ctx.db.insert(customer).values(input).returning();
+		return newCustomer;
+	},
+};
 export const Customer: Resolver = {
 	supportRep: (parent, _args, ctx) => {
 		if (parent.supportRep) return parent.supportRep;
