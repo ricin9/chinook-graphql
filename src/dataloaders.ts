@@ -117,7 +117,7 @@ export function createDataloaders(db: DB) {
 				});
 
 				return keys.map(
-					(key) => rows.find((row) => row.albumId === key) || new Error('artist not found')
+					(key) => rows.find((row) => row.albumId === key)?.tracks || new Error('album not found')
 				);
 			});
 
