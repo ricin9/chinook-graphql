@@ -11,13 +11,19 @@ export const typeDefs = /* GraphQL */ `
 		genres(limit: Int, offset: Int): [Genre!]!
 		genre(id: ID, name: String): Genre
 
+		track(id: ID, name: String): Track
+
 		playlist(id: ID!): Playlist
 		playlists(limit: Int, offset: Int): [Playlist!]!
 
 		invoice(id: ID!): Invoice
+		invoices(limit: Int, offset: Int): [Invoice!]!
 
 		employee(id: ID!): Employee
 		employees(limit: Int, offset: Int): [Employee!]!
+
+		customer(id: ID!): Customer
+		customers(limit: Int, offset: Int): [Customer!]!
 	}
 
 	type Album {

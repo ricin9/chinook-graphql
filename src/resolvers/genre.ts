@@ -1,5 +1,5 @@
 import { GraphQLError } from 'graphql';
-import { Resolver } from './Resolver';
+import { Resolver } from '../Resolver';
 import { getFieldInfo } from '../util';
 import { genre } from '../db/schema';
 import { eq } from 'drizzle-orm';

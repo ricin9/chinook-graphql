@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from 'graphql';
 import { YogaInitialContext } from 'graphql-yoga';
-import { ContextEnv } from '../env';
+import { ContextEnv } from './env';
 
 export type Resolver = Record<
 	string,

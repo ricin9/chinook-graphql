@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { Resolver } from './Resolver';
+import { Resolver } from '../Resolver';
 import { invoice } from '../db/schema';
 import { getFieldInfo } from '../util';
 
@@ -9,6 +9,22 @@ export const invoiceQueries: Resolver = {
 		const customerField = getFieldInfo(info, 'customer');
 
 		return ctx.db.query.invoice.findFirst({
+			where: eq(invoice.invoiceId, args.id),
+			with: {
+				invoiceLines: invoiceLinesField
+					? { limit: Number(invoiceLinesField.args.first) || 20 }
+					: undefined,
+				customer: customerField ? true : undefined,
+			},
+		});
+	},
+	invoices: (_, args, ctx, info) => {
+		const invoiceLinesField = getFieldInfo(info, 'invoiceLines');
+		const customerField = getFieldInfo(info, 'customer');
+
+		return ctx.db.query.invoice.findMany({
+			limit: args.limit || 20,
+			offset: args.offset ?? 0,
 			where: eq(invoice.invoiceId, args.id),
 			with: {
 				invoiceLines: invoiceLinesField

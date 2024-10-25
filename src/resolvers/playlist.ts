@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { getFieldInfo } from '../util';
-import { Resolver } from './Resolver';
+import { Resolver } from '../Resolver';
 import { playlist } from '../db/schema';
 
 export const playlistQueries: Resolver = {

@@ -1,4 +1,4 @@
-import { Resolver } from './Resolver';
+import { Resolver } from '../Resolver';
 
 export const InvoiceLine: Resolver = {
 	track: (parent, _args, ctx) => {

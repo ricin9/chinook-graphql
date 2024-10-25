@@ -64,6 +64,39 @@ export function createDataloaders(db: DB) {
 			);
 		});
 
+		static artistAlbums = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.album.findMany({
+				where: inArray(artist.artistId, keys as number[]),
+			});
+
+			for (let i = 0; i < rows.length; i++) {
+				this.albums.prime(rows[i].albumId, rows[i]);
+			}
+			return keys.map((key) => rows.filter((row) => row.artistId === key));
+		});
+
+		static mediatypes = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.mediaType.findMany({
+				where: inArray(mediaType.mediaTypeId, keys as number[]),
+			});
+
+			return keys.map((key) => rows.find((row) => row.mediaTypeId === key));
+		});
+		static genres = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.genre.findMany({
+				where: inArray(genre.genreId, keys as number[]),
+			});
+
+			return keys.map((key) => rows.find((row) => row.genreId === key));
+		});
+
+		static albums = new Dataloader(async (keys: readonly number[]) => {
+			const rows = await db.query.album.findMany({
+				where: inArray(album.albumId, keys as number[]),
+			});
+
+			return keys.map((key) => rows.find((row) => row.albumId === key));
+		});
 		private static paginatedBatches: Record<
 			string,
 			{ first: Record<number, Dataloader<any, any>> }
@@ -273,39 +306,5 @@ export function createDataloaders(db: DB) {
 			this.paginatedBatches[dataloaderName].first[first] = dataloader;
 			return dataloader;
 		};
-
-		static artistAlbums = new Dataloader(async (keys: readonly number[]) => {
-			const rows = await db.query.album.findMany({
-				where: inArray(artist.artistId, keys as number[]),
-			});
-
-			for (let i = 0; i < rows.length; i++) {
-				this.albums.prime(rows[i].albumId, rows[i]);
-			}
-			return keys.map((key) => rows.filter((row) => row.artistId === key));
-		});
-
-		static mediatypes = new Dataloader(async (keys: readonly number[]) => {
-			const rows = await db.query.mediaType.findMany({
-				where: inArray(mediaType.mediaTypeId, keys as number[]),
-			});
-
-			return keys.map((key) => rows.find((row) => row.mediaTypeId === key));
-		});
-		static genres = new Dataloader(async (keys: readonly number[]) => {
-			const rows = await db.query.genre.findMany({
-				where: inArray(genre.genreId, keys as number[]),
-			});
-
-			return keys.map((key) => rows.find((row) => row.genreId === key));
-		});
-
-		static albums = new Dataloader(async (keys: readonly number[]) => {
-			const rows = await db.query.album.findMany({
-				where: inArray(album.albumId, keys as number[]),
-			});
-
-			return keys.map((key) => rows.find((row) => row.albumId === key));
-		});
 	};
 }

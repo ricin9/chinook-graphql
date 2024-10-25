@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { album } from '../db/schema';
 import { getFieldInfo } from '../util';
-import { Resolver } from './Resolver';
+import { Resolver } from '../Resolver';
 
 export const albumQueries: Resolver = {
 	album: (_, args, ctx, info) => {

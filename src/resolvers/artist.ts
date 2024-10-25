@@ -1,7 +1,7 @@
 import { getFieldInfo } from '../util';
 import { eq } from 'drizzle-orm';
 import { album, artist } from '../db/schema';
-import { Resolver } from './Resolver';
+import { Resolver } from '../Resolver';
 
 export const artistQueries: Resolver = {
 	artist: (_, args, ctx, info) => {
@@ -31,15 +31,7 @@ export const artistQueries: Resolver = {
 
 export const Artist: Resolver = {
 	albums: (parent, args, ctx, info) => {
-		// prone to n+1
 		if (parent.albums) return parent.albums;
-		const tracksSelection = getFieldInfo(info, 'tracks');
-		return ctx.db.query.album.findMany({
-			where: eq(album.artistId, parent.artistId),
-			limit: args.first || 20,
-			with: {
-				tracks: tracksSelection ? { limit: Number(tracksSelection.args.first) || 20 } : undefined,
-			},
-		});
+		return ctx.dataloaders.artistAlbums.load(parent.artistId);
 	},
 };
