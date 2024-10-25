@@ -2,6 +2,8 @@ import { getFieldInfo } from '../util';
 import { eq } from 'drizzle-orm';
 import { album, artist } from '../db/schema';
 import { Resolver } from '../Resolver';
+import { createInsertSchema } from 'drizzle-zod';
+import { GraphQLError } from 'graphql';
 
 export const artistQueries: Resolver = {
 	artist: (_, args, ctx, info) => {
@@ -26,6 +28,26 @@ export const artistQueries: Resolver = {
 				albums: albumSelection ? { limit: Number(albumSelection.args.first) || 20 } : undefined,
 			},
 		});
+	},
+};
+
+export const artistMutations: Resolver = {
+	newArtist: async (_, args, ctx, info) => {
+		if (args.name.length === 0) throw new GraphQLError('name must not be empty');
+
+		const [newArtist] = await ctx.db.insert(artist).values({ name: args.name }).returning();
+		return newArtist;
+	},
+
+	updateArtist: async (_, args, ctx, info) => {
+		if (args.name.length === 0) throw new GraphQLError('name must not be empty');
+
+		const [updatedArtist] = await ctx.db
+			.update(artist)
+			.set({ name: args.name })
+			.where(eq(artist.artistId, Number(args.id)))
+			.returning();
+		return updatedArtist;
 	},
 };
 

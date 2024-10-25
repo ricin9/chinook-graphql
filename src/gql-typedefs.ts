@@ -28,7 +28,28 @@ export const typeDefs = /* GraphQL */ `
 
 	type Mutation {
 		newCustomer(input: NewCustomerInput!): Customer!
+		"""
+		returns null if customer does not exist
+		"""
 		updateCustomer(id: ID!, input: UpdateCustomerInput!): Customer
+
+		newEmployee(input: NewEmployeeInput!): Employee!
+		"""
+		returns null if employee does not exist
+		"""
+		updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee
+
+		newArtist(name: String!): Artist!
+		"""
+		returns null if artist does not exist
+		"""
+		updateArtist(id: ID!, name: String!): Artist
+
+		newAlbum(artistId: ID!, title: String!): Album!
+		"""
+		returns null if album does not exist
+		"""
+		updateAlbum(id: ID!, title: String!): Album
 	}
 
 	type Album {
@@ -163,5 +184,38 @@ export const typeDefs = /* GraphQL */ `
 		fax: String
 		email: String
 		supportRepId: Int
+	}
+
+	input NewEmployeeInput {
+		lastName: String!
+		firstName: String!
+		title: String
+		birthDate: String
+		hireDate: String
+		address: String
+		city: String
+		state: String
+		country: String
+		postalCode: String
+		phone: String
+		fax: String
+		email: String
+		reportsTo: Int
+	}
+	input UpdateEmployeeInput {
+		lastName: String
+		firstName: String
+		title: String
+		birthDate: String
+		hireDate: String
+		address: String
+		city: String
+		state: String
+		country: String
+		postalCode: String
+		phone: String
+		fax: String
+		email: String
+		reportsTo: Int
 	}
 `;
